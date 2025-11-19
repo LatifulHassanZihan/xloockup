@@ -42,17 +42,14 @@ def print_message(message_type, message):
 
 def validate_phone_number(number):
     """Validate and clean phone number"""
-    # Remove all non-digit characters except +
     cleaned = re.sub(r'[^\d+]', '', str(number))
     
     if not cleaned:
         return False, "Empty phone number"
     
-    # Check if number starts with +, if not add it
     if not cleaned.startswith('+'):
         cleaned = '+' + cleaned
     
-    # Basic length validation
     if len(cleaned) < 10:
         return False, "Phone number too short"
     
@@ -63,7 +60,8 @@ def save_results(phone_number, data, search_type="single"):
     try:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         if search_type == "single":
-            filename = f"xloockup_{phone_number}_{timestamp}.json"
+            clean_phone = re.sub(r'[^\w]', '_', phone_number)
+            filename = f"xloockup_{clean_phone}_{timestamp}.json"
         else:
             filename = f"xloockup_bulk_{timestamp}.json"
         
@@ -99,7 +97,6 @@ def display_result(result, phone_number):
     print(f"\n{COLORS['success']}=== XLOOCKUP RESULTS ==={COLORS['reset']}")
     print(f"{COLORS['info']}Phone: {COLORS['reset']}{phone_number}")
     
-    # Display available information
     fields = {
         'name': 'Name',
         'carrier': 'Carrier',
@@ -108,19 +105,34 @@ def display_result(result, phone_number):
         'country': 'Country',
         'email': 'Email',
         'spam_score': 'Spam Score',
-        'score': 'Confidence Score'
+        'score': 'Confidence Score',
+        'spam_type': 'Spam Type'
     }
     
     for key, display_name in fields.items():
         if key in result and result[key]:
             if key == 'spam_score':
                 spam_score = result[key]
-                spam_status = f"{COLORS['error']}SPAM" if spam_score > 50 else f"{COLORS['success']}CLEAN"
+                if spam_score > 70:
+                    spam_status = f"{COLORS['error']}HIGH SPAM"
+                elif spam_score > 40:
+                    spam_status = f"{COLORS['warning']}MEDIUM SPAM"
+                else:
+                    spam_status = f"{COLORS['success']}CLEAN"
                 print(f"{COLORS['info']}{display_name}: {COLORS['reset']}{spam_score} - {spam_status}")
+            elif key == 'score':
+                score = result[key]
+                if score > 80:
+                    score_color = COLORS['success']
+                elif score > 60:
+                    score_color = COLORS['warning']
+                else:
+                    score_color = COLORS['error']
+                print(f"{COLORS['info']}{display_name}: {score_color}{score}{COLORS['reset']}")
             else:
                 print(f"{COLORS['info']}{display_name}: {COLORS['reset']}{result[key]}")
     
-    print(f"{COLORS['success']}{'='*30}{COLORS['reset']}")
+    print(f"{COLORS['success']}{'='*40}{COLORS['reset']}")
 
 def clear_screen():
     """Clear terminal screen"""

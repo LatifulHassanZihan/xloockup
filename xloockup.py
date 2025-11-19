@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-XLOOCKUP - Truecaller Number Lookup Tool
+XLOOCKUP - Truecaller Number Lookup Tool v2.0
 Developer: Latiful Hassan Zihan
 Telegram: t.me/alwayszihan
+Powered by truecallerpy
 """
 
 import sys
@@ -14,9 +15,19 @@ from colorama import init
 init(autoreset=True)
 
 # Import project modules
-from config import PROJECT_NAME, DEVELOPER, TELEGRAM, VERSION, COLORS, COUNTRY_CODES
+from config import PROJECT_NAME, DEVELOPER, TELEGRAM, VERSION, COLORS, COUNTRY_CODES, check_installation
 from utils import print_banner, print_message, clear_screen, save_results, load_results, display_result
 from truecaller_api import TruecallerAPI
+
+def check_dependencies():
+    """Check if required packages are installed"""
+    if not check_installation():
+        print_message('error', "truecallerpy is not installed!")
+        print_message('info', "Installing required packages...")
+        os.system("pip install truecallerpy colorama")
+        print_message('success', "Packages installed successfully!")
+        print_message('info', "Please restart the application")
+        sys.exit(1)
 
 def show_menu():
     """Display main menu"""
@@ -27,11 +38,13 @@ def show_menu():
 {COLORS['success']}3.{COLORS['reset']} View Saved Results
 {COLORS['success']}4.{COLORS['reset']} Country Codes
 {COLORS['success']}5.{COLORS['reset']} Check API Status
-{COLORS['success']}6.{COLORS['reset']} Clear Screen
-{COLORS['success']}7.{COLORS['reset']} Exit
+{COLORS['success']}6.{COLORS['reset']} Set API Key
+{COLORS['success']}7.{COLORS['reset']} Clear Screen
+{COLORS['success']}8.{COLORS['reset']} Exit
 
 {COLORS['info']}Developer: {DEVELOPER}
 Telegram: {TELEGRAM}{COLORS['reset']}
+{COLORS['warning']}Powered by truecallerpy API{COLORS['reset']}
     """)
 
 def single_lookup():
@@ -51,7 +64,7 @@ def single_lookup():
     api = TruecallerAPI()
     result = api.search_number(phone_number, country_code)
     
-    if result:
+    if result and 'error' not in result:
         display_result(result, phone_number)
         save_choice = input(f"\n{COLORS['cyan']}Save results? (y/n): {COLORS['reset']}").lower()
         if save_choice in ['y', 'yes']:
@@ -94,7 +107,7 @@ def bulk_lookup():
     results = api.bulk_search(phone_numbers, country_code)
     
     # Display summary
-    successful = sum(1 for r in results.values() if 'error' not in r)
+    successful = sum(1 for r in results.values() if r and 'error' not in r)
     failed = len(phone_numbers) - successful
     
     print(f"\n{COLORS['success']}=== BULK SEARCH SUMMARY ==={COLORS['reset']}")
@@ -163,17 +176,33 @@ def check_api_status():
     if status:
         print_message('success', "✓ API is accessible and working")
     else:
-        print_message('error', "✗ API is not accessible. Check your internet connection.")
+        print_message('error', "✗ API is not accessible. Check your API key and internet connection.")
+
+def set_api_key():
+    """Set custom API key"""
+    print(f"\n{COLORS['warning']}=== SET API KEY ==={COLORS['reset']}")
+    print_message('info', "Get your API key from Truecaller developer account")
+    api_key = input(f"{COLORS['cyan']}Enter your API key: {COLORS['reset']}").strip()
+    
+    if api_key:
+        api = TruecallerAPI()
+        api.set_api_key(api_key)
+        print_message('success', "API key updated! It will be used for this session.")
+    else:
+        print_message('error', "No API key provided!")
 
 def main():
     """Main application loop"""
+    # Check dependencies first
+    check_dependencies()
+    
     clear_screen()
     print_banner()
     
     while True:
         try:
             show_menu()
-            choice = input(f"{COLORS['cyan']}Select option (1-7): {COLORS['reset']}").strip()
+            choice = input(f"{COLORS['cyan']}Select option (1-8): {COLORS['reset']}").strip()
             
             if choice == '1':
                 single_lookup()
@@ -186,13 +215,15 @@ def main():
             elif choice == '5':
                 check_api_status()
             elif choice == '6':
+                set_api_key()
+            elif choice == '7':
                 clear_screen()
                 print_banner()
-            elif choice == '7':
-                print_message('success', "Thank you for using Xloockup! - t.me/alwayszihan")
+            elif choice == '8':
+                print_message('success', "Thank you for using Xloockup v2.0! - t.me/alwayszihan")
                 break
             else:
-                print_message('error', "Invalid choice! Please select 1-7.")
+                print_message('error', "Invalid choice! Please select 1-8.")
             
             input(f"\n{COLORS['cyan']}Press Enter to continue...{COLORS['reset']}")
             clear_screen()

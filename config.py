@@ -23,7 +23,7 @@ HEADERS = {
     'Accept': 'application/json',
     'Accept-Language': 'en-US',
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer a1i0k--f2b4046a6f199a1d4a7e7a7b7d9a5d8e0e8f2c3'
+    'clientId': 'a1i0k--f2b4046a6f199a1d4a7e7a7b7d9a5d8e0e8f2c3'
 }
 
 # File Paths
@@ -49,5 +49,8 @@ COUNTRY_CODES = {
     'UK': 'United Kingdom',
     'AE': 'United Arab Emirates',
     'SA': 'Saudi Arabia',
-    'PK': 'Pakistan'
+    'PK': 'Pakistan',
+    'CA': 'Canada',
+    'AU': 'Australia',
+    'SG': 'Singapore'
 }

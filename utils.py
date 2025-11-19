@@ -17,7 +17,8 @@ def print_banner():
 {COLORS['cyan']}
 ╔══════════════════════════════════════════════╗
 ║                  {COLORS['magenta']}XLOOCKUP{COLORS['cyan']}                   ║
-║           Truecaller Number Lookup           ║
+║        Truecaller Number Lookup v2.0         ║
+║           Powered by truecallerpy            ║
 ║           Developer: Latiful Hassan Zihan    ║
 ║           Telegram: t.me/alwayszihan         ║
 ╚══════════════════════════════════════════════╝
@@ -48,13 +49,16 @@ def validate_phone_number(number):
     if not cleaned:
         return False, "Empty phone number"
     
-    # Handle Bangladesh numbers specifically
+    # Handle different formats
     if cleaned.startswith('01') and len(cleaned) == 11:
-        # Convert 017... to +88017...
-        cleaned = '+88' + cleaned
+        # Bangladesh: 017... to +88017...
+        cleaned = '+880' + cleaned[1:]
     elif cleaned.startswith('1') and len(cleaned) == 10:
-        # Convert 1... to +8801...
-        cleaned = '+8801' + cleaned[1:]
+        # Bangladesh: 1... to +8801...
+        cleaned = '+8801' + cleaned
+    elif cleaned.startswith('91') and len(cleaned) == 12:
+        # India: 91... to +91...
+        cleaned = '+' + cleaned
     elif not cleaned.startswith('+'):
         # Add + if missing
         cleaned = '+' + cleaned
@@ -62,14 +66,6 @@ def validate_phone_number(number):
     # Basic length validation
     if len(cleaned) < 10:
         return False, "Phone number too short"
-    
-    # Validate country codes
-    if cleaned.startswith('+880') and len(cleaned) != 14:
-        return False, "Bangladesh numbers must be 11 digits after +880"
-    elif cleaned.startswith('+91') and len(cleaned) != 13:
-        return False, "India numbers must be 10 digits after +91"
-    elif cleaned.startswith('+1') and len(cleaned) not in [12, 13]:
-        return False, "US numbers must be 10-11 digits after +1"
     
     return True, cleaned
 
@@ -119,41 +115,66 @@ def display_result(result, phone_number):
     print(f"\n{COLORS['success']}=== XLOOCKUP RESULTS ==={COLORS['reset']}")
     print(f"{COLORS['info']}Phone: {COLORS['reset']}{phone_number}")
     
-    fields = {
-        'name': 'Name',
-        'carrier': 'Carrier',
-        'type': 'Type',
-        'address': 'Location',
-        'country': 'Country',
-        'email': 'Email',
-        'spam_score': 'Spam Score',
-        'score': 'Confidence Score',
-        'spam_type': 'Spam Type',
-        'full_address': 'Full Address'
-    }
+    # Extract data from truecallerpy response
+    data = result.get('data', [{}])[0] if result.get('data') else {}
     
-    for key, display_name in fields.items():
-        if key in result and result[key]:
-            if key == 'spam_score':
-                spam_score = result[key]
-                if spam_score > 70:
-                    spam_status = f"{COLORS['error']}HIGH SPAM"
-                elif spam_score > 40:
-                    spam_status = f"{COLORS['warning']}MEDIUM SPAM"
-                else:
-                    spam_status = f"{COLORS['success']}CLEAN"
-                print(f"{COLORS['info']}{display_name}: {COLORS['reset']}{spam_score} - {spam_status}")
-            elif key == 'score':
-                score = result[key]
-                if score > 80:
-                    score_color = COLORS['success']
-                elif score > 60:
-                    score_color = COLORS['warning']
-                else:
-                    score_color = COLORS['error']
-                print(f"{COLORS['info']}{display_name}: {score_color}{score}{COLORS['reset']}")
-            else:
-                print(f"{COLORS['info']}{display_name}: {COLORS['reset']}{result[key]}")
+    # Name information
+    name = data.get('name', 'Not Available')
+    if name and name != 'Not Available':
+        print(f"{COLORS['info']}Name: {COLORS['reset']}{name}")
+    
+    # Phone information
+    if data.get('phones'):
+        phone_info = data['phones'][0]
+        carrier = phone_info.get('carrier', 'Not Available')
+        number_type = phone_info.get('type', 'Not Available')
+        
+        print(f"{COLORS['info']}Carrier: {COLORS['reset']}{carrier}")
+        print(f"{COLORS['info']}Type: {COLORS['reset']}{number_type}")
+    
+    # Address information
+    if data.get('addresses'):
+        address_info = data['addresses'][0]
+        city = address_info.get('city', 'Not Available')
+        country = address_info.get('countryCode', 'Not Available')
+        
+        if city and city != 'Not Available':
+            print(f"{COLORS['info']}City: {COLORS['reset']}{city}")
+        if country and country != 'Not Available':
+            print(f"{COLORS['info']}Country: {COLORS['reset']}{country}")
+    
+    # Email information
+    if data.get('internetAddresses'):
+        for internet_addr in data['internetAddresses']:
+            email = internet_addr.get('id', '')
+            if '@' in email:
+                print(f"{COLORS['info']}Email: {COLORS['reset']}{email}")
+                break
+    
+    # Spam information
+    spam_score = data.get('spamScore', 0)
+    spam_type = data.get('spamType', 'Not Spam')
+    
+    if spam_score > 70:
+        spam_status = f"{COLORS['error']}HIGH SPAM"
+    elif spam_score > 40:
+        spam_status = f"{COLORS['warning']}MEDIUM SPAM"
+    else:
+        spam_status = f"{COLORS['success']}CLEAN"
+    
+    print(f"{COLORS['info']}Spam Score: {COLORS['reset']}{spam_score} - {spam_status}")
+    print(f"{COLORS['info']}Spam Type: {COLORS['reset']}{spam_type}")
+    
+    # Confidence score
+    score = data.get('score', 0)
+    if score > 80:
+        score_color = COLORS['success']
+    elif score > 60:
+        score_color = COLORS['warning']
+    else:
+        score_color = COLORS['error']
+    
+    print(f"{COLORS['info']}Confidence: {score_color}{score}%{COLORS['reset']}")
     
     print(f"{COLORS['success']}{'='*40}{COLORS['reset']}")
 
@@ -161,15 +182,6 @@ def clear_screen():
     """Clear terminal screen"""
     os.system('clear' if os.name == 'posix' else 'cls')
 
-def format_bangladesh_number(number):
-    """Format Bangladesh numbers correctly"""
-    if number.startswith('01') and len(number) == 11:
-        return '+88' + number
-    elif number.startswith('1') and len(number) == 10:
-        return '+8801' + number[1:]
-    elif number.startswith('+880'):
-        return number
-    elif number.startswith('880'):
-        return '+' + number
-    else:
-        return number
+def format_phone_for_display(phone):
+    """Format phone number for better display"""
+    return phone

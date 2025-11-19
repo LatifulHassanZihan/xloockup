@@ -42,16 +42,34 @@ def print_message(message_type, message):
 
 def validate_phone_number(number):
     """Validate and clean phone number"""
+    # Remove all non-digit characters except +
     cleaned = re.sub(r'[^\d+]', '', str(number))
     
     if not cleaned:
         return False, "Empty phone number"
     
-    if not cleaned.startswith('+'):
+    # Handle Bangladesh numbers specifically
+    if cleaned.startswith('01') and len(cleaned) == 11:
+        # Convert 017... to +88017...
+        cleaned = '+88' + cleaned
+    elif cleaned.startswith('1') and len(cleaned) == 10:
+        # Convert 1... to +8801...
+        cleaned = '+8801' + cleaned[1:]
+    elif not cleaned.startswith('+'):
+        # Add + if missing
         cleaned = '+' + cleaned
     
+    # Basic length validation
     if len(cleaned) < 10:
         return False, "Phone number too short"
+    
+    # Validate country codes
+    if cleaned.startswith('+880') and len(cleaned) != 14:
+        return False, "Bangladesh numbers must be 11 digits after +880"
+    elif cleaned.startswith('+91') and len(cleaned) != 13:
+        return False, "India numbers must be 10 digits after +91"
+    elif cleaned.startswith('+1') and len(cleaned) not in [12, 13]:
+        return False, "US numbers must be 10-11 digits after +1"
     
     return True, cleaned
 
@@ -90,8 +108,12 @@ def load_results():
 
 def display_result(result, phone_number):
     """Display lookup results in formatted way"""
-    if not result or 'error' in result:
-        print_message('error', f"No results found for {phone_number}")
+    if not result:
+        print_message('error', f"No results received for {phone_number}")
+        return
+        
+    if 'error' in result:
+        print_message('error', f"Error: {result['error']}")
         return
     
     print(f"\n{COLORS['success']}=== XLOOCKUP RESULTS ==={COLORS['reset']}")
@@ -106,7 +128,8 @@ def display_result(result, phone_number):
         'email': 'Email',
         'spam_score': 'Spam Score',
         'score': 'Confidence Score',
-        'spam_type': 'Spam Type'
+        'spam_type': 'Spam Type',
+        'full_address': 'Full Address'
     }
     
     for key, display_name in fields.items():
@@ -137,3 +160,16 @@ def display_result(result, phone_number):
 def clear_screen():
     """Clear terminal screen"""
     os.system('clear' if os.name == 'posix' else 'cls')
+
+def format_bangladesh_number(number):
+    """Format Bangladesh numbers correctly"""
+    if number.startswith('01') and len(number) == 11:
+        return '+88' + number
+    elif number.startswith('1') and len(number) == 10:
+        return '+8801' + number[1:]
+    elif number.startswith('+880'):
+        return number
+    elif number.startswith('880'):
+        return '+' + number
+    else:
+        return number

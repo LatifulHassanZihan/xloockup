@@ -1,63 +1,53 @@
-#!/usr/bin/env python3
 """
-Xloockup - Configuration Module
+Xloockup Configuration
 Developer: Latiful Hassan Zihan
 Telegram: t.me/alwayszihan
 """
 
 import os
-import json
-from datetime import datetime
+from colorama import Fore, Style
 
-# Base paths for Termux Android
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "xloockup_data")
-RESULTS_DIR = os.path.join(DATA_DIR, "results")
-CONFIG_FILE = os.path.join(DATA_DIR, "config.json")
+# Project Info
+PROJECT_NAME = "Xloockup"
+DEVELOPER = "Latiful Hassan Zihan"
+TELEGRAM = "t.me/alwayszihan"
+VERSION = "1.0.0"
 
-# Create necessary directories
-os.makedirs(DATA_DIR, exist_ok=True)
+# API Configuration
+TRUECALLER_SEARCH_URL = "https://search5-noneu.truecaller.com/v2/search"
+TRUECALLER_BULK_SEARCH_URL = "https://search5-noneu.truecaller.com/v2/bulk"
+
+# Headers
+HEADERS = {
+    'User-Agent': 'Truecaller/12.45.7 (Android;10)',
+    'Accept': 'application/json',
+    'Accept-Language': 'en-US',
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer a1i0k--f2b4046a6f199a1d4a7e7a7b7d9a5d8e0e8f2c3'
+}
+
+# File Paths
+RESULTS_DIR = "results"
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-# Default configuration
-DEFAULT_CONFIG = {
-    "api_timeout": 30,
-    "max_retries": 3,
-    "rate_limit_delay": 2,
-    "default_country_code": "BD",
-    "save_results": True,
-    "session_data": {}
+# Colors
+COLORS = {
+    'success': Fore.GREEN,
+    'error': Fore.RED,
+    'warning': Fore.YELLOW,
+    'info': Fore.BLUE,
+    'cyan': Fore.CYAN,
+    'magenta': Fore.MAGENTA,
+    'reset': Style.RESET_ALL
 }
 
-# Mobile-optimized headers
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36",
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Connection": "keep-alive",
+# Country Codes
+COUNTRY_CODES = {
+    'IN': 'India',
+    'US': 'United States',
+    'BD': 'Bangladesh',
+    'UK': 'United Kingdom',
+    'AE': 'United Arab Emirates',
+    'SA': 'Saudi Arabia',
+    'PK': 'Pakistan'
 }
-
-def load_config():
-    """Load configuration from file"""
-    try:
-        if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, 'r') as f:
-                return {**DEFAULT_CONFIG, **json.load(f)}
-    except Exception:
-        pass
-    return DEFAULT_CONFIG.copy()
-
-def save_config(config):
-    """Save configuration to file"""
-    try:
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump(config, f, indent=2)
-        return True
-    except Exception:
-        return False
-
-def get_results_filename():
-    """Generate results filename with timestamp"""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return os.path.join(RESULTS_DIR, f"lookup_results_{timestamp}.json")

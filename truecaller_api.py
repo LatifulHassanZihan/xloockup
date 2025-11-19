@@ -24,6 +24,12 @@ class TruecallerAPI:
                 print_message('error', f"Invalid phone number: {cleaned_number}")
                 return None
             
+            # Fix for Bangladesh numbers - remove extra zeros
+            if country_code == "BD" and cleaned_number.startswith("+0"):
+                cleaned_number = "+88" + cleaned_number[2:]
+            elif country_code == "BD" and cleaned_number.startswith("0"):
+                cleaned_number = "+88" + cleaned_number[1:]
+            
             country_name = COUNTRY_CODES.get(country_code, country_code)
             print_message('info', f"Searching: {cleaned_number} ({country_name})")
             
@@ -33,19 +39,39 @@ class TruecallerAPI:
                 print_message('warning', "Rate limiting - waiting 2 seconds...")
                 time.sleep(2)
             
+            # Updated payload structure
             payload = {
                 "q": cleaned_number,
                 "countryCode": country_code,
-                "type": "4",
+                "type": "1",
                 "placement": "SEARCHRESULTS,HISTORY,DETAILS",
                 "encoding": "json"
             }
             
-            response = self.session.post(
-                TRUECALLER_SEARCH_URL,
-                json=payload,
-                timeout=20
-            )
+            # Try different API endpoints
+            endpoints = [
+                "https://search5-noneu.truecaller.com/v2/search",
+                "https://search5.truecaller.com/v2/search",
+                "https://api4.truecaller.com/v1/search"
+            ]
+            
+            response = None
+            for endpoint in endpoints:
+                try:
+                    print_message('info', f"Trying endpoint: {endpoint.split('/')[-2]}")
+                    response = self.session.post(
+                        endpoint,
+                        json=payload,
+                        timeout=15
+                    )
+                    if response.status_code == 200:
+                        break
+                except:
+                    continue
+            
+            if not response:
+                print_message('error', "All API endpoints failed")
+                return {"error": "All API endpoints failed"}
             
             if response.status_code == 200:
                 data = response.json()
@@ -53,6 +79,9 @@ class TruecallerAPI:
                 if 'error' not in parsed_data:
                     print_message('success', "Lookup successful!")
                 return parsed_data
+            elif response.status_code == 404:
+                print_message('error', "Number not found in database")
+                return {"error": "Number not found in Truecaller database"}
             elif response.status_code == 429:
                 print_message('error', "Rate limited - Too many requests")
                 return {"error": "Rate limited - try again later"}
@@ -73,7 +102,10 @@ class TruecallerAPI:
     def _parse_response(self, data, phone_number):
         """Parse Truecaller API response"""
         try:
-            if not data or 'data' not in data or not data['data']:
+            if not data:
+                return {"error": "Empty response from API"}
+                
+            if 'data' not in data or not data['data']:
                 return {"error": "No data available for this number"}
             
             result = {
@@ -85,7 +117,7 @@ class TruecallerAPI:
             item = data['data'][0]
             
             # Extract name
-            if 'name' in item:
+            if 'name' in item and item['name']:
                 result['name'] = item['name']
             
             # Extract phone information
@@ -120,6 +152,10 @@ class TruecallerAPI:
             result['search_source'] = item.get('source', 'Truecaller')
             result['active'] = item.get('active', True)
             
+            # Check if we got any useful data
+            if not any(key in result for key in ['name', 'carrier', 'address', 'email']):
+                return {"error": "No identifiable information found"}
+            
             return result
             
         except Exception as e:
@@ -148,9 +184,9 @@ class TruecallerAPI:
         """Check API status"""
         try:
             test_payload = {
-                "q": "+911234567890",
-                "countryCode": "IN",
-                "type": "4",
+                "q": "+8801712345678",
+                "countryCode": "BD",
+                "type": "1",
                 "encoding": "json"
             }
             

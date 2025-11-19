@@ -363,101 +363,189 @@ class XloockupInterface:
                 idx = int(choice) - 1
                 if 0 <= idx < len(previous_files):
                     self.view_saved_results(previous_files[idx])
-        except Exception as e:
-            print(f"{Fore.RED}❌ Error loading file: {str(e)}")
+#!/usr/bin/env python3
+"""
+XLOOCKUP - Truecaller Number Lookup Tool
+Developer: Latiful Hassan Zihan
+Telegram: t.me/alwayszihan
+"""
+
+import sys
+import json
+import os
+from colorama import init
+
+# Initialize colorama
+init(autoreset=True)
+
+# Import project modules
+from config import PROJECT_NAME, DEVELOPER, TELEGRAM, VERSION, COLORS, COUNTRY_CODES
+from utils import print_banner, print_message, clear_screen, save_results, load_results, display_result
+from truecaller_api import TruecallerAPI
+
+def show_menu():
+    """Display main menu"""
+    print(f"""
+{COLORS['cyan']}=== {PROJECT_NAME} v{VERSION} ==={COLORS['reset']}
+{COLORS['success']}1.{COLORS['reset']} Single Number Lookup
+{COLORS['success']}2.{COLORS['reset']} Bulk Number Lookup  
+{COLORS['success']}3.{COLORS['reset']} View Saved Results
+{COLORS['success']}4.{COLORS['reset']} Country Codes
+{COLORS['success']}5.{COLORS['reset']} Clear Screen
+{COLORS['success']}6.{COLORS['reset']} Exit
+
+{COLORS['info']}Developer: {DEVELOPER}
+Telegram: {TELEGRAM}{COLORS['reset']}
+    """)
+
+def single_lookup():
+    """Handle single number lookup"""
+    print(f"\n{COLORS['warning']}=== SINGLE NUMBER LOOKUP ==={COLORS['reset']}")
     
-    def view_saved_results(self, filename: str):
-        """View specific saved results file"""
+    phone_number = input(f"{COLORS['cyan']}Enter phone number: {COLORS['reset']}").strip()
+    country_code = input(f"{COLORS['cyan']}Country code (IN, US, BD etc) [IN]: {COLORS['reset']}").strip().upper() or "IN"
+    
+    if not phone_number:
+        print_message('error', "Phone number required!")
+        return
+    
+    # Perform lookup
+    api = TruecallerAPI()
+    result = api.search_number(phone_number, country_code)
+    
+    if result:
+        display_result(result, phone_number)
+        
+        # Save results
+        save_choice = input(f"\n{COLORS['cyan']}Save results? (y/n): {COLORS['reset']}").lower()
+        if save_choice in ['y', 'yes']:
+            save_results(phone_number, result)
+
+def bulk_lookup():
+    """Handle bulk number lookup"""
+    print(f"\n{COLORS['warning']}=== BULK NUMBER LOOKUP ==={COLORS['reset']}")
+    
+    print(f"{COLORS['info']}Enter phone numbers (one per line). Type 'done' to finish:{COLORS['reset']}")
+    phone_numbers = []
+    
+    while True:
         try:
-            from config import RESULTS_DIR
-            filepath = os.path.join(RESULTS_DIR, filename)
+            number = input().strip()
+            if number.lower() == 'done':
+                break
+            if number:
+                phone_numbers.append(number)
+        except KeyboardInterrupt:
+            print_message('warning', "Input interrupted")
+            break
+    
+    if not phone_numbers:
+        print_message('error', "No numbers provided!")
+        return
+    
+    country_code = input(f"{COLORS['cyan']}Country code (IN, US, BD etc) [IN]: {COLORS['reset']}").strip().upper() or "IN"
+    
+    # Perform bulk lookup
+    api = TruecallerAPI()
+    results = api.bulk_search(phone_numbers, country_code)
+    
+    # Display all results
+    for number, result in results.items():
+        display_result(result, number)
+    
+    # Save bulk results
+    save_choice = input(f"\n{COLORS['cyan']}Save all results? (y/n): {COLORS['reset']}").lower()
+    if save_choice in ['y', 'yes']:
+        save_results("bulk_search", results, "bulk")
+
+def view_saved_results():
+    """View previously saved results"""
+    files = load_results()
+    
+    if not files:
+        print_message('warning', "No saved results found!")
+        return
+    
+    print(f"\n{COLORS['warning']}=== SAVED RESULTS ({len(files)} files) ==={COLORS['reset']}")
+    
+    for i, filename in enumerate(files, 1):
+        print(f"{COLORS['success']}{i}.{COLORS['reset']} {filename}")
+    
+    try:
+        choice = input(f"\n{COLORS['cyan']}Select file to view (0 to cancel): {COLORS['reset']}").strip()
+        if choice == '0':
+            return
+        
+        selected_index = int(choice) - 1
+        if 0 <= selected_index < len(files):
+            selected_file = files[selected_index]
+            filepath = os.path.join("results", selected_file)
             
             with open(filepath, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
-            print(f"\n{Fore.GREEN + Style.BRIGHT}📄 VIEWING: {filename}")
+            print(f"\n{COLORS['success']}=== {selected_file} ==={COLORS['reset']}")
+            print(json.dumps(data, indent=2, ensure_ascii=False))
+        else:
+            print_message('error', "Invalid selection!")
             
-            if 'results' in data:  # Bulk results
-                for result in data['results']:
-                    if result.get('success'):
-                        self.display_number_info(result)
-                        print()
-            else:  # Single result
-                self.display_number_info(data)
-                
-        except Exception as e:
-            print(f"{Fore.RED}❌ Error reading file: {str(e)}")
+    except (ValueError, IndexError):
+        print_message('error', "Invalid input!")
+    except Exception as e:
+        print_message('error', f"Error: {str(e)}")
+
+def show_country_codes():
+    """Display available country codes"""
+    print(f"\n{COLORS['warning']}=== COUNTRY CODES ==={COLORS['reset']}")
+    for code, country in COUNTRY_CODES.items():
+        print(f"{COLORS['success']}{code}:{COLORS['reset']} {country}")
+
+def main():
+    """Main application loop"""
+    clear_screen()
+    print_banner()
     
-    def settings_menu(self):
-        """Display and modify settings"""
-        print(f"\n{Fore.CYAN + Style.BRIGHT}⚙️  SETTINGS")
-        print(f"{Fore.CYAN}─" * 30)
-        
-        print(f"{Fore.GREEN}1. Default Country Code: {self.engine.config.get('default_country_code', 'BD')}")
-        print(f"{Fore.GREEN}2. Rate Limit Delay: {self.engine.config.get('rate_limit_delay', 2)}s")
-        print(f"{Fore.GREEN}3. Auto-save Results: {'Yes' if self.engine.config.get('save_results', True) else 'No'}")
-        
-        choice = input(f"\n{Fore.YELLOW}Select setting to change (1-3) or Enter to cancel: {Style.RESET_ALL}").strip()
-        
-        if choice == '1':
-            new_cc = input(f"{Fore.GREEN}Enter new default country code (BD/US/IN/UK): {Style.RESET_ALL}").strip().upper()
-            if new_cc in ['BD', 'US', 'IN', 'UK']:
-                self.engine.config['default_country_code'] = new_cc
-                save_config(self.engine.config)
-                print(f"{Fore.GREEN}✅ Country code updated!")
-        
-        elif choice == '2':
-            try:
-                new_delay = float(input(f"{Fore.GREEN}Enter new rate limit delay (seconds): {Style.RESET_ALL}"))
-                if 1 <= new_delay <= 10:
-                    self.engine.config['rate_limit_delay'] = new_delay
-                    save_config(self.engine.config)
-                    print(f"{Fore.GREEN}✅ Rate limit delay updated!")
-                else:
-                    print(f"{Fore.RED}❌ Delay must be between 1-10 seconds!")
-            except ValueError:
-                print(f"{Fore.RED}❌ Invalid number!")
-        
-        elif choice == '3':
-            self.engine.config['save_results'] = not self.engine.config.get('save_results', True)
-            save_config(self.engine.config)
-            state = "enabled" if self.engine.config['save_results'] else "disabled"
-            print(f"{Fore.GREEN}✅ Auto-save {state}!")
-    
-    def main_menu(self):
-        """Display main menu and handle user input"""
-        while self.running:
-            print(f"\n{Fore.CYAN + Style.BRIGHT}🏠 XLOOCKUP MAIN MENU")
-            print(f"{Fore.CYAN}═" * 40)
-            print(f"{Fore.GREEN}1. {Style.BRIGHT}🔍 Single Number Lookup")
-            print(f"{Fore.BLUE}2. {Style.BRIGHT}📊 Bulk Number Lookup") 
-            print(f"{Fore.YELLOW}3. {Style.BRIGHT}📚 View Previous Results")
-            print(f"{Fore.MAGENTA}4. {Style.BRIGHT}⚙️  Settings")
-            print(f"{Fore.RED}5. {Style.BRIGHT}🚪 Exit")
-            print(f"{Fore.CYAN}═" * 40)
-            
-            choice = input(f"\n{Fore.YELLOW}Select option (1-5): {Style.RESET_ALL}").strip()
+    while True:
+        try:
+            show_menu()
+            choice = input(f"{COLORS['cyan']}Select option (1-6): {COLORS['reset']}").strip()
             
             if choice == '1':
-                self.single_lookup_menu()
+                single_lookup()
             elif choice == '2':
-                self.bulk_lookup_menu()
+                bulk_lookup()
             elif choice == '3':
-                self.view_history_menu()
+                view_saved_results()
             elif choice == '4':
-                self.settings_menu()
+                show_country_codes()
             elif choice == '5':
-                print(f"\n{Fore.GREEN}👋 Thank you for using Xloockup!")
-                print(f"{Fore.CYAN}Developer: Latiful Hassan Zihan")
-                print(f"{Fore.BLUE}Telegram: t.me/alwayszihan")
-                self.running = False
+                clear_screen()
+                print_banner()
+            elif choice == '6':
+                print_message('success', "Thank you for using Xloockup!")
+                break
             else:
-                print(f"{Fore.RED}❌ Invalid option! Please choose 1-5.")
+                print_message('error', "Invalid choice! Please select 1-6.")
+            
+            input(f"\n{COLORS['cyan']}Press Enter to continue...{COLORS['reset']}")
+            clear_screen()
+            print_banner()
+            
+        except KeyboardInterrupt:
+            print_message('warning', "\nOperation cancelled by user")
+            break
+        except Exception as e:
+            print_message('error', f"Unexpected error: {str(e)}")
+
+if __name__ == "__main__":
+    # Check Python version
+    if sys.version_info < (3, 6):
+        print("Python 3.6 or higher is required!")
+        sys.exit(1)
     
-    def run(self):
-        """Main application runner"""
-        try:
-            self.display_banner()
+    # Run main application
+    main()
+nner()
             self.display_ethical_warning()
             self.main_menu()
         except KeyboardInterrupt:
